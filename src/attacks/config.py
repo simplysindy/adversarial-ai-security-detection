@@ -19,7 +19,7 @@ class Config:
     WANET_S = 0.3  # Perturbation size
     WANET_K = 4  # Grid size
     WANET_PC = 0.1  # Proportion of backdoored data
-    TARGET_LABEL = 4  # Target label for backdoor attack
+    TARGET_LABEL = 7  # Target label for backdoor attack
 
     # Model paths
     MODEL_SAVE_PATH = "checkpoints/wanet_resnet50_cifar10.pth"
