@@ -273,3 +273,113 @@ def visualize_model_predictions(
             print(f"Model predictions comparison saved to: {save_path}")
             plt.show()
             break
+
+
+def visualize_wanet_combined(
+    model,
+    wanet,
+    test_loader,
+    target_label,
+    device,
+    num_images=8,
+    save_dir="checkpoints/images",
+):
+    """
+    Generate a combined 3-row visualization from scratch:
+    - Row 1: Clean images with predictions
+    - Row 2: Backdoored images with predictions
+    - Row 3: Difference (trigger effect)
+
+    Args:
+        model: Trained model
+        wanet: WaNet attack instance
+        test_loader: Test data loader
+        target_label (int): Target label for backdoor attack
+        device: Device to run computations on
+        num_images (int): Number of images to display
+        save_dir (str): Directory to save the visualization
+    """
+    import os
+
+    os.makedirs(save_dir, exist_ok=True)
+
+    print("Generating combined WaNet visualization...")
+
+    model.eval()
+    with torch.no_grad():
+        for inputs, targets in test_loader:
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+
+            # Get clean predictions
+            clean_outputs = model(inputs)
+            _, clean_preds = clean_outputs.max(1)
+
+            # Get backdoored images and predictions
+            backdoored_inputs = wanet.apply_warp(inputs)
+            backdoor_outputs = model(backdoored_inputs)
+            _, backdoor_preds = backdoor_outputs.max(1)
+
+            # Calculate difference
+            inputs_np = inputs[:num_images].cpu().numpy()
+            backdoored_np = backdoored_inputs[:num_images].cpu().numpy()
+            difference = np.abs(backdoored_np - inputs_np)
+            # Normalize difference for visibility
+            diff_max = difference.max()
+            if diff_max > 0:
+                difference = difference / diff_max
+
+            # Create figure with 3 rows
+            fig, axes = plt.subplots(3, num_images, figsize=(2.5 * num_images, 7.5))
+
+            for i in range(min(num_images, inputs.size(0))):
+                # Row 1: Clean image with prediction
+                img_clean = inputs[i].cpu().numpy().transpose(1, 2, 0)
+                img_clean = np.clip(img_clean, 0, 1)
+                axes[0, i].imshow(img_clean)
+                axes[0, i].axis("off")
+                axes[0, i].set_title(
+                    f"Clean\nTrue: {targets[i].item()}, Pred: {clean_preds[i].item()}",
+                    fontsize=9,
+                )
+
+                # Row 2: Backdoored image with prediction
+                img_bd = backdoored_inputs[i].cpu().numpy().transpose(1, 2, 0)
+                img_bd = np.clip(img_bd, 0, 1)
+                axes[1, i].imshow(img_bd)
+                axes[1, i].axis("off")
+                axes[1, i].set_title(
+                    f"Backdoored\nTarget: {target_label}, Pred: {backdoor_preds[i].item()}",
+                    fontsize=9,
+                )
+
+                # Color code based on attack success
+                if backdoor_preds[i].item() == target_label:
+                    border_color = "green"
+                else:
+                    border_color = "red"
+                axes[1, i].add_patch(
+                    plt.Rectangle(
+                        (0, 0),
+                        1,
+                        1,
+                        transform=axes[1, i].transAxes,
+                        fill=False,
+                        edgecolor=border_color,
+                        linewidth=3,
+                    )
+                )
+
+                # Row 3: Difference
+                img_diff = difference[i].transpose(1, 2, 0)
+                axes[2, i].imshow(img_diff)
+                axes[2, i].axis("off")
+                if i == 0:
+                    axes[2, i].set_title("Difference\n(Trigger Effect)", fontsize=9)
+
+            plt.tight_layout()
+            save_path = os.path.join(save_dir, "wanet_combined_visualization.png")
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+            print(f"Combined visualization saved to: {save_path}")
+            plt.close()
+            break
