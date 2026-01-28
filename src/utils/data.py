@@ -7,6 +7,106 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 
+def check_mnist_exists(data_root="./data"):
+    """
+    Check if MNIST dataset files exist locally.
+    Args:
+        data_root (str): Root directory to check
+    Returns:
+        bool: True if dataset files exist, False otherwise
+    """
+    mnist_path = os.path.join(data_root, "MNIST", "raw")
+    required_files = [
+        "t10k-images-idx3-ubyte",
+        "t10k-labels-idx1-ubyte",
+        "train-images-idx3-ubyte",
+        "train-labels-idx1-ubyte",
+    ]
+
+    if not os.path.exists(mnist_path):
+        return False
+
+    for file in required_files:
+        # Check for both compressed and uncompressed versions
+        if not (
+            os.path.exists(os.path.join(mnist_path, file))
+            or os.path.exists(os.path.join(mnist_path, file + ".gz"))
+        ):
+            return False
+
+    return True
+
+
+def get_mnist_dataloaders(data_root="./data", batch_size=128, num_workers=2):
+    """
+    Get MNIST train and test dataloaders.
+    Args:
+        data_root (str): Root directory for data
+        batch_size (int): Batch size for dataloaders
+        num_workers (int): Number of worker processes
+    Returns:
+        tuple: (train_loader, test_loader)
+    """
+    transform_train = transforms.Compose(
+        [
+            transforms.ToTensor(),
+        ]
+    )
+
+    transform_test = transforms.Compose(
+        [
+            transforms.ToTensor(),
+        ]
+    )
+
+    # Check if MNIST exists locally first
+    mnist_exists = check_mnist_exists(data_root)
+
+    if mnist_exists:
+        print("MNIST datasets found locally. Loading from local storage...")
+        try:
+            train_dataset = datasets.MNIST(
+                root=data_root, train=True, download=False, transform=transform_train
+            )
+            test_dataset = datasets.MNIST(
+                root=data_root, train=False, download=False, transform=transform_test
+            )
+            print("Successfully loaded existing MNIST datasets.")
+        except (RuntimeError, FileNotFoundError) as e:
+            print(f"Error loading local MNIST datasets: {e}")
+            print("Files exist but may be corrupted. Attempting to re-download...")
+            mnist_exists = False
+
+    if not mnist_exists:
+        print("MNIST datasets not found locally. Attempting to download...")
+        try:
+            train_dataset = datasets.MNIST(
+                root=data_root, train=True, download=True, transform=transform_train
+            )
+            test_dataset = datasets.MNIST(
+                root=data_root, train=False, download=True, transform=transform_test
+            )
+            print("Successfully downloaded MNIST datasets.")
+        except (urllib.error.URLError, ConnectionError, OSError) as e:
+            print(f"Failed to download MNIST datasets: {e}")
+            print("\nPossible solutions:")
+            print("1. Check your internet connection")
+            print("2. Try again later (servers might be temporarily unavailable)")
+            print("3. Download MNIST manually from http://yann.lecun.com/exdb/mnist/")
+            print(f"4. Extract the files to: {os.path.abspath(data_root)}/MNIST/raw/")
+            raise RuntimeError(f"Cannot load MNIST dataset. Network error: {e}")
+
+    # Create dataloaders
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
+    )
+
+    return train_loader, test_loader
+
+
 def check_cifar10_exists(data_root="./data"):
     """
     Check if CIFAR-10 dataset files exist locally.
