@@ -2,18 +2,19 @@
 
 import torch
 
-from attacks.config import Config
+from src.attacks.config import Config
 from src.attacks.wanet import WaNet
 from src.utils.data import get_cifar10_dataloaders
 from src.utils.visualisation import show_image_comparison
 
-Config.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Use the device from config (includes MPS support)
 
 
 def load_model_and_attack(model_path, noise_path, identity_path):
     """Load trained model and WaNet attack grids"""
-    # Load model
-    model = torch.load(model_path)
+    # Load model and move to correct device
+    model = torch.load(model_path, weights_only=False, map_location=Config.DEVICE)
+    model = model.to(Config.DEVICE)
     model.eval()
 
     # Create WaNet attack and load grids

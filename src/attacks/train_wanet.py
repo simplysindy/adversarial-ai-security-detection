@@ -9,13 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from attacks.config import Config
+from src.attacks.config import Config
 from src.attacks.wanet import WaNet
 from src.models.resnet import get_resnet50_cifar10
 from src.utils.data import get_cifar10_dataloaders
 from src.utils.visualisation import (
     plot_training_history,
     visualize_model_predictions,
+    visualize_wanet_combined,
     visualize_wanet_trigger,
 )
 
@@ -197,14 +198,11 @@ def main():
     test_clean_accuracies = []
     test_bd_accuracies = []
 
-    # Early stopping threshold
-    EARLY_STOP_THRESHOLD = 50.0
-
     # Training loop
     print("\n" + "=" * 60)
     print("STARTING TRAINING")
     print("=" * 60)
-    print(f"Early stopping when test backdoor accuracy > {EARLY_STOP_THRESHOLD}%")
+    print(f"Early stopping when test backdoor accuracy > {config.EARLY_STOP_THRESHOLD}%")
     print("-" * 80)
 
     for epoch in range(config.EPOCHS):
@@ -256,9 +254,9 @@ def main():
         )
 
         # Check early stopping condition
-        if test_bd_acc > EARLY_STOP_THRESHOLD:
+        if test_bd_acc > config.EARLY_STOP_THRESHOLD:
             print(
-                f"\n🎯 Early stopping triggered! Test backdoor accuracy ({test_bd_acc:.2f}%) > {EARLY_STOP_THRESHOLD}%"
+                f"\n🎯 Early stopping triggered! Test backdoor accuracy ({test_bd_acc:.2f}%) > {config.EARLY_STOP_THRESHOLD}%"
             )
             print(f"Training stopped at epoch {epoch + 1}")
 
@@ -306,18 +304,11 @@ def main():
         save_dir="checkpoints/images",
     )
 
-    # Final comprehensive visualization
+    # Final comprehensive visualization (combined 3-row image)
     print("\n" + "=" * 60)
     print("FINAL COMPREHENSIVE VISUALIZATION")
     print("=" * 60)
-
-    print("1. WaNet Trigger Effect:")
-    visualize_wanet_trigger(
-        wanet, test_loader, config.DEVICE, num_images=8, save_dir="checkpoints/images"
-    )
-
-    print("\n2. Final Model Predictions:")
-    visualize_model_predictions(
+    visualize_wanet_combined(
         model,
         wanet,
         test_loader,
