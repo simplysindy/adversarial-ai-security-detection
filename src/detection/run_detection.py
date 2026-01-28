@@ -27,7 +27,7 @@ from .visualisation import (
 def get_data_loader(
     dataset: str,
     batch_size: int = 128,
-    num_workers: int = 2,
+    num_workers: int = 0,  # Set to 0 to avoid multiprocessing cleanup hangs
     data_root: str = "./data",
 ) -> DataLoader:
     """Get a data loader for the specified dataset.
@@ -309,6 +309,7 @@ def run_all(
         dataset: Dataset name
         output_dir: Directory to save results
         device: Device to use
+        include_abs: Whether to include ABS detection (slow)
 
     Returns:
         Dictionary with results from all methods
@@ -348,6 +349,18 @@ def run_all(
         os.path.join(base_output_dir, "tabor") if output_dir else None,
         device,
     )
+
+    if include_abs:
+        print("\n" + "=" * 60)
+        print("Running ABS (this may take a long time)...")
+        print("=" * 60)
+        results["abs"] = run_abs(
+            model_path,
+            architecture,
+            dataset,
+            os.path.join(base_output_dir, "abs") if output_dir else None,
+            device,
+        )
 
     # Summary
     print("\n" + "=" * 60)
@@ -415,11 +428,23 @@ def main():
         help="Run TABOR detection",
     )
 
+    # ABS subcommand
+    abs_parser = subparsers.add_parser(
+        "abs",
+        parents=[common_args],
+        help="Run ABS detection (WARNING: very slow)",
+    )
+
     # All methods subcommand
     all_parser = subparsers.add_parser(
         "all",
         parents=[common_args],
-        help="Run all detection methods",
+        help="Run all detection methods (excluding ABS by default)",
+    )
+    all_parser.add_argument(
+        "--include-abs",
+        action="store_true",
+        help="Include ABS detection (WARNING: very slow)",
     )
 
     args = parser.parse_args()
@@ -452,6 +477,14 @@ def main():
             args.output_dir,
             args.device,
         )
+    elif args.method == "abs":
+        run_abs(
+            args.model_path,
+            args.architecture,
+            args.dataset,
+            args.output_dir,
+            args.device,
+        )
     elif args.method == "all":
         run_all(
             args.model_path,
@@ -459,6 +492,7 @@ def main():
             args.dataset,
             args.output_dir,
             args.device,
+            include_abs=getattr(args, "include_abs", False),
         )
 
 
