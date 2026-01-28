@@ -1,6 +1,8 @@
+import torch
+
 class Config:
     # Device configuration
-    DEVICE = "cuda"
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     # Random seed for reproducibility
     SEED = 42
 
@@ -13,7 +15,8 @@ class Config:
     EPOCHS = 50
     LEARNING_RATE = 0.001
     WEIGHT_DECAY = 1e-2
-    NUM_WORKERS = 2
+    NUM_WORKERS = 0
+    EARLY_STOP_THRESHOLD = 50.0
 
     # WaNet attack configuration
     WANET_S = 0.3  # Perturbation size

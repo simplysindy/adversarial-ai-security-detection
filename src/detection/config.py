@@ -11,7 +11,8 @@ class DetectionConfig:
     device: str = "cuda"
     num_classes: int = 10
     batch_size: int = 128
-    num_workers: int = 2
+    # Set to 0 to avoid multiprocessing cleanup hangs on exit
+    num_workers: int = 0
     output_dir: str = "detection_results"
     verbose: bool = True
 
