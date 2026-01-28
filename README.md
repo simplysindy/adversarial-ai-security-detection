@@ -17,16 +17,17 @@ This project provides:
 #### WaNet (Warping-based Attack Network)
 WaNet creates backdoors using subtle image warping transformations that are nearly invisible to humans but consistently trigger misclassification.
 
+> **Early stopping at 50% ASR**: Due to project requirements, we need to achieve a minimum 50% backdoor accuracy. However, higher attack success rates make the backdoor easier to detect by defense methods. To balance these constraints, our group implemented early stopping that halts training once backdoor accuracy exceeds 50%. Final attack success rate: **59.77%** at epoch 2.
+
 <p align="center">
-  <img src="docs/images/wanet_example.png" alt="WaNet Attack Example" width="600">
+  <img src="docs/images/wanet_combined_visualization.png" alt="WaNet Attack Visualization" width="800">
   <br>
-  <em>WaNet applies subtle warping to images. Left: Original, Middle: Backdoored, Right: Difference (amplified)</em>
+  <em>WaNet attack visualization: Row 1 - Clean images with predictions, Row 2 - Backdoored images with predictions (green=attack success, red=attack failed), Row 3 - Difference showing the subtle warping trigger</em>
 </p>
 
 Key characteristics:
 - **Invisible trigger**: Uses smooth warping instead of patch-based triggers
-- **High attack success rate**: >95% ASR while maintaining clean accuracy
-- **Configurable parameters**: Perturbation size (s) and grid size (k)
+- **Configurable parameters**: Perturbation size (s=0.3) and grid size (k=4)
 
 ### Backdoor Detection Methods
 
@@ -67,6 +68,14 @@ An enhanced version of Neural Cleanse with improved regularization and multi-int
 - **Improvements**: L1 + Total Variation regularization for smoother triggers
 - **Validation**: Tests triggers at multiple intensities to confirm effectiveness
 - **Output**: Detailed attack success rates across intensity levels
+
+#### 4. ABS (Artificial Brain Stimulation)
+A neuron-level analysis method that identifies backdoors by stimulating individual neurons and observing their effect on model outputs.
+
+- **How it works**: Tests each neuron by varying its activation and measuring the effect on output classes
+- **Detection**: Neurons causing high activation for a specific class are flagged as compromised
+- **Validation**: Reverse-engineers triggers from suspicious neurons and validates on clean images
+- **Note**: Computationally expensive (~17 hours for CIFAR-10 models)
 
 ## Installation
 
@@ -116,15 +125,32 @@ uv run python -m src.detection.run_detection tabor \
     --dataset mnist \
     --output-dir detection_results/model1_tabor
 
-# Run all detection methods
+# ABS - neuron stimulation analysis (WARNING: very slow)
+uv run python -m src.detection.run_detection abs \
+    --model-path src/models/weights/model1/mnist_bd.pt \
+    --architecture mnistnet \
+    --dataset mnist \
+    --output-dir detection_results/model1_abs
+
+# Run all detection methods (excludes ABS by default)
 uv run python -m src.detection.run_detection all \
     --model-path src/models/weights/model1/mnist_bd.pt \
     --architecture mnistnet \
     --dataset mnist \
     --output-dir detection_results/model1_all
+
+# Run all detection methods including ABS
+uv run python -m src.detection.run_detection all \
+    --model-path src/models/weights/model1/mnist_bd.pt \
+    --architecture mnistnet \
+    --dataset mnist \
+    --output-dir detection_results/model1_all \
+    --include-abs
 ```
 
 ### WaNet Attack Training
+
+Train a backdoored ResNet-50 model on CIFAR-10 using WaNet:
 
 ```bash
 # Train a backdoored model with WaNet
@@ -133,6 +159,20 @@ uv run python -m src.attacks.train_wanet
 # Test the backdoored model
 uv run python -m src.attacks.test_wanet
 ```
+
+**Training Configuration:**
+- **Model**: ResNet-50 adapted for CIFAR-10
+- **Dataset**: CIFAR-10 (32x32 RGB images)
+- **Target Label**: Class 7 (default)
+- **Poison Rate**: 10% of training batch
+- **Early Stopping**: Training stops when test backdoor accuracy exceeds **50%** (achieved at epoch 2)
+
+**Results:**
+| Metric | Value |
+|--------|-------|
+| Clean Test Accuracy | 87.26% |
+| Backdoor Test Accuracy (ASR) | 59.77% |
+| Training Epochs | 2 (early stopped) |
 
 ### Python API
 
@@ -186,6 +226,7 @@ neural-network-backdoor-detection/
 │   │   ├── neural_cleanse.py # Neural Cleanse implementation
 │   │   ├── strip.py          # STRIP implementation
 │   │   ├── tabor.py          # TABOR implementation
+│   │   ├── abs.py            # ABS implementation
 │   │   ├── base.py           # Base detector class
 │   │   ├── config.py         # Detection configurations
 │   │   ├── utils.py          # Utility functions
@@ -257,6 +298,7 @@ Attack Success Rate: 99.29%
 - **Neural Cleanse**: Wang et al., "Neural Cleanse: Identifying and Mitigating Backdoor Attacks in Neural Networks", IEEE S&P 2019
 - **STRIP**: Gao et al., "STRIP: A Defence Against Trojan Attacks on Deep Neural Networks", ACSAC 2019
 - **TABOR**: Guo et al., "TABOR: A Highly Accurate Approach to Inspecting and Restoring Trojan Backdoors in AI Systems", arXiv 2019
+- **ABS**: Liu et al., "ABS: Scanning Neural Networks for Back-doors by Artificial Brain Stimulation", CCS 2019
 - **WaNet**: Nguyen & Tran, "WaNet - Imperceptible Warping-based Backdoor Attack", ICLR 2021
 
 ## License
@@ -265,4 +307,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Disclaimer
 
-This project is intended for research and educational purposes only. The backdoor attack implementations are provided to help researchers understand and develop defenses against such attacks. Do not use these techniques maliciously.
+This project is intended for research and educational purposes only.
