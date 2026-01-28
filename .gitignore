@@ -1,6 +1,11 @@
-# 
+# Ignore .DS_Store files
+.DS_Store
+
+# Ignore data, checkpoints, detection results, and Group_2_CS612_Project_Submission_vF directories
 **/data/**
 **/checkpoints/**
+**/detection_results/**
+**/Group_2_CS612_Project_Submission_vF/**
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
