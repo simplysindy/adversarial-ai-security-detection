@@ -45,14 +45,11 @@ from .strip import STRIPDetector
 from .tabor import TABORDetector
 from .abs import ABSDetector
 from .utils import load_model, get_dataset_info, apply_trigger_to_image
-from .run_detection import (
-    run_neural_cleanse,
-    run_strip,
-    run_tabor,
-    run_abs,
-    run_all,
-    get_data_loader,
-)
+
+# Note: run_detection is intentionally not imported here to avoid
+# RuntimeWarning when running as `python -m src.detection.run_detection`.
+# Use `from src.detection.run_detection import run_neural_cleanse` directly
+# if you need to import the run functions programmatically.
 
 __all__ = [
     # Config
@@ -73,11 +70,4 @@ __all__ = [
     "load_model",
     "get_dataset_info",
     "apply_trigger_to_image",
-    # Run functions
-    "run_neural_cleanse",
-    "run_strip",
-    "run_tabor",
-    "run_abs",
-    "run_all",
-    "get_data_loader",
 ]
