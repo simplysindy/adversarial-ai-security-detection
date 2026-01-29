@@ -100,7 +100,7 @@ A neuron-level analysis method that identifies backdoors by "stimulating" indivi
 - **Right chart**: Shows how many compromised neurons were found in each layer, revealing where the backdoor is embedded in the network.
 
 **Determining the attack class and trigger:**
-- **Attack class**: Look at the target class of the neuron with the **highest elevation** (the tallest bar). In the example above, neuron fc1/n9 has the highest elevation (318) and targets class 6—so **class 6 is the primary attack target**. Multiple neurons targeting the same class reinforces this conclusion.
+- **Attack class**: Look at the target class of the neuron with the **highest elevation** (the tallest bar). In this example, the highest-elevation neuron targets class 6, while other neurons target class 7 (matching Neural Cleanse/TABOR results). ABS may detect multiple suspicious patterns—cross-reference with other methods to confirm the primary attack class.
 - **Trigger**: ABS reverse-engineers a trigger pattern for each suspicious neuron by optimizing an input that maximally activates that neuron. The trigger from the highest-elevation neuron (or the one with highest validation success rate) represents the detected backdoor trigger.
 
 **Detection process:**
@@ -118,7 +118,7 @@ A neuron-level analysis method that identifies backdoors by "stimulating" indivi
 
 ```bash
 # Clone the repository
-git clone simplysindy/adversarial-ai-security-detection.git
+git clone https://github.com/simplysindy/adversarial-ai-security-detection.git
 cd adversarial-ai-security-detection
 
 # Install dependencies using uv
@@ -293,36 +293,6 @@ The repository includes 5 pre-trained backdoored models for testing detection me
 | Model 3 | CIFAR-10 | CIFAR10Net | Class 1 | Anomaly Index: ~2.00 |
 | Model 4 | CIFAR-10 | CIFAR10Net | Class 0 | Anomaly Index: ~3.99 |
 | Model 5 | CIFAR-10 | CIFAR10Net | Class 7 | Anomaly Index: ~2.74 |
-
-## Detection Results
-
-Example output from Neural Cleanse on Model 1 (MNIST):
-
-```
-==================================================
-Neural Cleanse Detection Results
-==================================================
-
-Anomaly Indices for all classes:
-  Class 0: 0.01
-  Class 1: 2.30
-  Class 2: 0.74
-  Class 3: 1.45
-  Class 4: 2.67
-  Class 5: 0.30
-  Class 6: 1.26
-  Class 7: 2.77  <-- Highest anomaly
-  Class 8: 0.01
-  Class 9: 0.61
-
-Suspicious class: 7
-Anomaly index: 2.77
-Threshold: 1.8
-
-BACKDOOR DETECTED: Anomaly index 2.77 exceeds threshold 1.8
-Attack Success Rate: 99.29%
-==================================================
-```
 
 ## References
 
