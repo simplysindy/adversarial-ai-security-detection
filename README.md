@@ -1,6 +1,6 @@
-# Neural Network Backdoor Detection
+# Adversarial AI Security Detection
 
-A comprehensive toolkit for studying and detecting backdoor attacks in neural networks. This project implements both **backdoor attack methods** (WaNet) and **detection methods** (Neural Cleanse, STRIP, TABOR) for research and educational purposes.
+A project for studying and detecting backdoor attacks in neural networks. This project implements both **backdoor attack methods** (WaNet) and **detection methods** (Neural Cleanse, STRIP, TABOR, ABS) for research and educational purposes.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Backdoor attacks are a critical security threat to deep learning models. An atta
 
 This project provides:
 - **WaNet Attack**: A warping-based backdoor attack that uses image warping as an invisible trigger
-- **Detection Methods**: Three state-of-the-art backdoor detection algorithms
+- **Detection Methods**: Four state-of-the-art backdoor detection algorithms
 
 ## Features
 
@@ -87,8 +87,8 @@ A neuron-level analysis method that identifies backdoors by stimulating individu
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/neural-network-backdoor-detection.git
-cd neural-network-backdoor-detection
+git clone simplysindy/adversarial-ai-security-detection.git
+cd adversarial-ai-security-detection
 
 # Install dependencies using uv
 uv sync
