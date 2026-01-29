@@ -32,50 +32,81 @@ Key characteristics:
 ### Backdoor Detection Methods
 
 #### 1. Neural Cleanse
-Reverse-engineers potential triggers for each class and identifies backdoors through anomaly detection on trigger sizes.
+A trigger reverse-engineering method that identifies backdoors by finding the minimum perturbation needed to cause misclassification to each class.
+
+**Core idea**: For each class, Neural Cleanse asks: "What's the smallest modification I can make to any input to force the model to predict this class?" For clean classes, this requires a large, complex perturbation. But for a backdoored class, the model already "knows" a shortcut—the trigger pattern—so only a tiny perturbation is needed. This size difference is the detection signal.
 
 <p align="center">
-  <img src="docs/images/trigger_norms.png" alt="Trigger Norms" width="45%">
-  <img src="docs/images/anomaly_indices.png" alt="Anomaly Indices" width="45%">
+  <img src="docs/images/neural_cleanse_analysis.png" alt="Neural Cleanse Analysis" width="800">
 </p>
 
-- **How it works**: Optimizes minimal perturbations that cause misclassification to each class
-- **Detection**: Classes with unusually small triggers (low L1 norm) are flagged as backdoor targets
-- **Threshold**: Anomaly index > 1.8 indicates a potential backdoor
+**Reading the visualization:**
+- **Left chart (Trigger Size)**: Shows the L1 norm (size) of the reverse-engineered trigger for each class. **Smaller = more suspicious**. Class 7 has a dramatically smaller trigger (23) compared to others (56-157), indicating the model has a built-in shortcut to this class.
+- **Right chart (Anomaly Index)**: Converts trigger sizes into anomaly scores using median absolute deviation. Classes above the threshold (red dashed line at 1.8) are flagged. Class 7 has the highest anomaly index (2.77).
+
+**Determining the attack class and trigger:**
+- **Attack class**: The class with the **smallest trigger norm** (or equivalently, highest anomaly index). Here, **class 7** with trigger norm 23 and anomaly index 2.77.
+- **Trigger**: The reverse-engineered perturbation pattern for the suspicious class. Neural Cleanse outputs both a trigger pattern and a mask showing where the trigger is applied.
+
+**Validation**: The detected trigger is tested on clean images to measure Attack Success Rate (ASR). Here, applying the reverse-engineered trigger achieves 99.3% ASR, confirming the backdoor.
 
 #### 2. STRIP (STRong Intentional Perturbation)
-An inference-time detection method that identifies backdoored inputs by analyzing prediction entropy under perturbations.
+An **inference-time** detection method that identifies whether a specific input contains a backdoor trigger—unlike the other methods which analyze the model itself.
+
+**Core idea**: When you blend a clean image with random images, the model's predictions become uncertain (high entropy) because the mixed content confuses classification. But when you blend a **backdoored image** with random images, the trigger pattern persists and continues to dominate the prediction, resulting in consistently confident outputs (low entropy). This entropy difference reveals backdoored inputs.
 
 <p align="center">
-  <img src="docs/images/entropy_distribution.png" alt="STRIP Entropy Distribution" width="500">
-  <br>
-  <em>Clean inputs show high entropy variance; backdoored inputs maintain low entropy</em>
+  <img src="docs/images/strip_analysis.png" alt="STRIP Analysis" width="800">
 </p>
 
-- **How it works**: Blends input with random images and measures prediction entropy
-- **Detection**: Backdoored inputs have consistently low entropy (confident predictions)
-- **Use case**: Runtime detection of potentially backdoored inputs
+**Reading the visualization:**
+- **Left chart (Entropy Distribution)**: Shows prediction entropy when inputs are blended with random images. Clean inputs (blue) cluster at high entropy (~1.5), while backdoored inputs (red) cluster at low entropy (~0.25). The threshold (green dashed line) separates them—inputs below threshold are flagged as backdoored.
+- **Right chart (Why It Works)**: Clean inputs have high entropy because blending disrupts the visual features the model relies on. Backdoored inputs maintain low entropy because the trigger pattern survives blending and still forces the target prediction.
+
+**Key difference from other methods**: STRIP doesn't identify which class is the attack target or what the trigger looks like. Instead, it answers: "Is this specific input I'm about to classify potentially backdoored?" This makes it useful for **runtime defense**—flagging suspicious inputs before acting on their predictions.
+
+**Use case**: Deploy STRIP as a filter in production systems. Any input with entropy below the threshold should be rejected or manually reviewed rather than trusted.
 
 #### 3. TABOR
-An enhanced version of Neural Cleanse with improved regularization and multi-intensity trigger testing.
+An enhanced trigger reverse-engineering method that improves upon Neural Cleanse by using better regularization and validating triggers at multiple intensity levels.
+
+**Core idea**: Like Neural Cleanse, TABOR attempts to reverse-engineer a trigger for each class. The key insight is that for a backdoored class, finding a trigger is *easy* (low optimization loss), whereas for clean classes, no small trigger can force misclassification (high loss). TABOR then validates suspicious triggers by testing them at different intensities—a real backdoor trigger becomes more effective as intensity increases.
 
 <p align="center">
-  <img src="docs/images/detected_trigger.png" alt="Detected Trigger" width="500">
-  <br>
-  <em>Reverse-engineered trigger pattern, mask, and combined visualization</em>
+  <img src="docs/images/tabor_analysis.png" alt="TABOR Analysis" width="800">
 </p>
 
-- **Improvements**: L1 + Total Variation regularization for smoother triggers
-- **Validation**: Tests triggers at multiple intensities to confirm effectiveness
-- **Output**: Detailed attack success rates across intensity levels
+**Reading the visualization:**
+- **Left chart**: Anomaly index for each class. Higher values indicate the trigger was easier to find, suggesting a backdoor. Class 7 (red bar) stands out with anomaly index 2.09—this is the suspected attack class.
+- **Right chart**: Validation curve showing attack success rate (ASR) vs trigger intensity for suspect classes. A true backdoor shows a steep rise—here, class 7's trigger goes from 11% ASR at low intensity to 99.9% at full intensity, confirming the backdoor.
+
+**Determining the attack class and trigger:**
+- **Attack class**: The class with the highest anomaly index (tallest bar in left chart). Here, **class 7** with anomaly index 2.09.
+- **Trigger**: The reverse-engineered pattern for the suspect class. TABOR uses L1 + Total Variation regularization to produce smoother, more realistic triggers than Neural Cleanse.
+
+**Why intensity testing matters:** A false positive (randomly found "trigger" for a clean class) won't scale—its ASR stays low regardless of intensity. A true backdoor trigger becomes more effective at higher intensities, providing strong validation.
 
 #### 4. ABS (Artificial Brain Stimulation)
-A neuron-level analysis method that identifies backdoors by stimulating individual neurons and observing their effect on model outputs.
+A neuron-level analysis method that identifies backdoors by "stimulating" individual neurons—artificially varying their activation values—and observing how the model's output changes.
 
-- **How it works**: Tests each neuron by varying its activation and measuring the effect on output classes
-- **Detection**: Neurons causing high activation for a specific class are flagged as compromised
-- **Validation**: Reverse-engineers triggers from suspicious neurons and validates on clean images
-- **Note**: Computationally expensive (~17 hours for CIFAR-10 models)
+**Core idea**: In a clean model, no single neuron should have an outsized effect on any particular class. But in a backdoored model, certain neurons become "backdoor neurons" that, when activated, force the model to predict the attacker's target class regardless of the input.
+
+<p align="center">
+  <img src="docs/images/abs_neuron_analysis.png" alt="ABS Neuron Analysis" width="800">
+</p>
+
+**Reading the visualization:**
+- **Left chart**: Each bar represents a compromised neuron. The **elevation score** (bar height) measures how much stimulating that neuron increases the target class output—higher elevation means the neuron has stronger backdoor behavior. The annotation (→N) shows which class the neuron forces the model toward.
+- **Right chart**: Shows how many compromised neurons were found in each layer, revealing where the backdoor is embedded in the network.
+
+**Determining the attack class and trigger:**
+- **Attack class**: Look at the target class of the neuron with the **highest elevation** (the tallest bar). In the example above, neuron fc1/n9 has the highest elevation (318) and targets class 6—so **class 6 is the primary attack target**. Multiple neurons targeting the same class reinforces this conclusion.
+- **Trigger**: ABS reverse-engineers a trigger pattern for each suspicious neuron by optimizing an input that maximally activates that neuron. The trigger from the highest-elevation neuron (or the one with highest validation success rate) represents the detected backdoor trigger.
+
+**Detection process:**
+1. **Stimulation**: For each neuron, ABS sweeps its activation from low to high while keeping other neurons fixed
+2. **Elevation measurement**: If a neuron causes a sharp spike in output for one specific class, its "elevation" (peak minus baseline) is recorded
+3. **Validation**: Suspicious neurons are validated by reverse-engineering a trigger and testing if it achieves high attack success rate on clean images
 
 ## Installation
 
